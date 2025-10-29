@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://lfxwqtdworf6"]
+
+[ext_resource type="PackedScene" uid="uid://gktauhm153ua" path="res://objects/Tanks.tscn" id="1_rldwe"]
+[ext_resource type="PackedScene" uid="uid://dysw7c5p6c4vy" path="res://objects/Hindrance.tscn" id="2_7j8sd"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="StaticBody2D" parent="." instance=ExtResource("2_7j8sd")]
+position = Vector2(886, 486)
+
+[node name="CharacterBody2D" parent="." instance=ExtResource("1_rldwe")]
+position = Vector2(884, 816)
