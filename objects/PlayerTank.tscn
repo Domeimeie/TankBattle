@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3 uid="uid://cqjeiu17gqiv5"]
+
+[ext_resource type="PackedScene" uid="uid://gktauhm153ua" path="res://objects/Tank.tscn" id="1_vl503"]
+[ext_resource type="Script" uid="uid://dqafqdv0rqstf" path="res://objects/playerTank.gd" id="2_qeu5b"]
+
+[node name="CharacterBody2D" instance=ExtResource("1_vl503")]
+script = ExtResource("2_qeu5b")

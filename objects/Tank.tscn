@@ -1,6 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://gktauhm153ua"]
-
-[ext_resource type="Script" uid="uid://d1dvta4418bd5" path="res://objects/tanks.gd" id="1_b5iv5"]
+[gd_scene load_steps=3 format=3 uid="uid://gktauhm153ua"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jswuo"]
 size = Vector2(90, 96)
@@ -8,7 +6,6 @@ size = Vector2(90, 96)
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_b5iv5"]
 
 [node name="CharacterBody2D" type="CharacterBody2D"]
-script = ExtResource("1_b5iv5")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_jswuo")
