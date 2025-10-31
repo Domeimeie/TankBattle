@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3 uid="uid://ct7njta278rq5"]
+
+[ext_resource type="Script" uid="uid://gt0k48fk5avr" path="res://levels/training/movement/t_basic_movement.gd" id="1_4bsii"]
+[ext_resource type="PackedScene" uid="uid://ceie3j1ekynyy" path="res://objects/Goal.tscn" id="2_28i8c"]
+[ext_resource type="PackedScene" uid="uid://dkr53yvse86m0" path="res://objects/AITank.tscn" id="3_4bsii"]
+[ext_resource type="PackedScene" uid="uid://by8yhsx84yyy4" path="res://admin/PythonConnector.tscn" id="4_28i8c"]
+
+[node name="BasicMovement" type="Node2D"]
+script = ExtResource("1_4bsii")
+
+[node name="Goal" parent="." instance=ExtResource("2_28i8c")]
+position = Vector2(1463, 460)
+
+[node name="AITank" parent="." instance=ExtResource("3_4bsii")]
+position = Vector2(541, 455)
+rotation = 1.5707964
+speed = 300.0
+rotation_speed = 2.5
+
+[node name="PythonConnector" parent="." instance=ExtResource("4_28i8c")]
+host = "127.0.0.1"
+port = 5555

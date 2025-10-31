@@ -5,7 +5,7 @@ size = Vector2(90, 96)
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_b5iv5"]
 
-[node name="CharacterBody2D" type="CharacterBody2D"]
+[node name="CharacterBody2D" type="CharacterBody2D" groups=["tanks"]]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_jswuo")

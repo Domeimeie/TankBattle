@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://dkr53yvse86m0"]
+
+[ext_resource type="PackedScene" uid="uid://gktauhm153ua" path="res://objects/Tank.tscn" id="1_jrn4s"]
+[ext_resource type="Script" uid="uid://j3yb1qajfbbf" path="res://objects/ai_tank.gd" id="2_8ok13"]
+
+[node name="CharacterBody2D" instance=ExtResource("1_jrn4s")]
+script = ExtResource("2_8ok13")
+speed = null
+rotation_speed = null

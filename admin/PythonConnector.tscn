@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://by8yhsx84yyy4"]
+
+[ext_resource type="Script" uid="uid://0stsw3dmwl37" path="res://admin/python_connector.gd" id="1_4vhf0"]
+
+[node name="PythonConnector" type="Node"]
+script = ExtResource("1_4vhf0")
+host = null
+port = null
