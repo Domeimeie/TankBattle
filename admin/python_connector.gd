@@ -1,57 +1,46 @@
 extends Node
-class_name PythonConnector
 
-var tcp := StreamPeerTCP.new()
-var packet := PacketPeerStream.new()
-var connected := false
-var recv_buf := ""
-var pending_actions: Array = []
+var server := TCPServer.new()
+var client : StreamPeerTCP
 
-@export var host := "127.0.0.1"
-@export var port := 5555
+const PORT := 5000
 
 func _ready() -> void:
-	var err := tcp.connect_to_host(host, port)
-	if err != OK:
-		push_error("PythonConnector: failed to connect (%s)" % err)
-		return
+	if server.listen(PORT) != OK:
+		push_error("Could not start server.")
+	else:
+		print("Server listening on port %d" % PORT)
 
-	connected = true
-	packet.stream_peer = tcp
-	print("PythonConnector: Connected to %s:%d" % [host, port])
 
-# --- Send state dictionary as JSON ---
-func send_state(state: Dictionary) -> void:
-	if not connected:
-		return
-	# Build plain JSON line
-	var json_line := JSON.stringify(state)
-	# Write exactly that text + ASCII newline
-	var bytes := (json_line + "\n").to_utf8_buffer()
-	tcp.put_data(bytes)
-	tcp.poll()  # push it out immediately
-	print("Sent to Python:", json_line)
+func _process(_delta: float) -> void:
+	# Accept a single client
+	if client == null and server.is_connection_available():
+		client = server.take_connection()
+		print("Client connected!")
 
-# --- Poll incoming data from Python ---
-func poll() -> void:
-	if not connected: return
-	while tcp.get_available_bytes() > 0:
-		recv_buf += tcp.get_utf8_string(tcp.get_available_bytes())
-		var lines := Array(recv_buf.split("\n", false))
-		recv_buf = ""
-		if lines.size() > 0:
-			recv_buf = lines.pop_back()  # keep incomplete line
-		for line in lines:
-			if line.is_empty():
-				continue
-			var parsed: Variant = JSON.parse_string(line)
-			if parsed is Array and parsed.size() == 2:
-				print("Received action from Python:", parsed)
-				pending_actions.append(Vector2(parsed[0], parsed[1]))
-			else:
-				push_warning("PythonConnector: bad line: %s" % line)
+	if client:
+		# If disconnected, reset
+		if client.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			print("Client disconnected.")
+			client = null
+			return
 
-func pop_action_or_default(default_action := Vector2.ZERO) -> Vector2:
-	if pending_actions.size() > 0:
-		return pending_actions.pop_front()
-	return default_action
+		# Read incoming data
+		var available := client.get_available_bytes()
+		if available > 0:
+			var raw := client.get_utf8_string(available)
+			var obj = JSON.parse_string(raw)
+			if obj == null:
+				print("Invalid JSON received:", raw)
+				return
+
+			print("Received JSON:", obj)
+
+			# Send JSON back
+			var response := {"ok": true, "received": obj}
+			_send_json(response)
+
+
+func _send_json(data: Dictionary) -> void:
+	var s := JSON.stringify(data)
+	client.put_data(s.to_utf8_buffer())

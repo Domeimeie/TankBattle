@@ -14,9 +14,5 @@ position = Vector2(1463, 460)
 [node name="AITank" parent="." instance=ExtResource("3_4bsii")]
 position = Vector2(541, 455)
 rotation = 1.5707964
-speed = 300.0
-rotation_speed = 2.5
 
 [node name="PythonConnector" parent="." instance=ExtResource("4_28i8c")]
-host = "127.0.0.1"
-port = 5555
