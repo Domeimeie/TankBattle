@@ -1,9 +1,14 @@
 extends Node
 
 var server := TCPServer.new()
-var client : StreamPeerTCP
+var client: StreamPeerTCP
 
 const PORT := 5000
+const SEND_INTERVAL := 0.5    # 5 times per second (1 / 0.2)
+
+@onready var arena := get_parent()
+
+var send_timer: float = 0.0
 
 func _ready() -> void:
 	if server.listen(PORT) != OK:
@@ -12,35 +17,31 @@ func _ready() -> void:
 		print("Server listening on port %d" % PORT)
 
 
-func _process(_delta: float) -> void:
-	# Accept a single client
+func _process(delta: float) -> void:
+	# Accept a client
 	if client == null and server.is_connection_available():
 		client = server.take_connection()
 		print("Client connected!")
 
 	if client:
-		# If disconnected, reset
 		if client.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 			print("Client disconnected.")
 			client = null
 			return
 
-		# Read incoming data
+		# Optional: read messages from Python
 		var available := client.get_available_bytes()
 		if available > 0:
 			var raw := client.get_utf8_string(available)
 			var obj = JSON.parse_string(raw)
-			if obj == null:
-				print("Invalid JSON received:", raw)
-				return
+			print("Received:", obj)
 
-			print("Received JSON:", obj)
+		# ----------------------------
+		# SEND EVERY 0.2 SECONDS (5 FPS)
+		# ----------------------------
+		send_timer += delta
+		if send_timer >= SEND_INTERVAL:
+			send_timer = 0.0
 
-			# Send JSON back
-			var response := {"ok": true, "received": obj}
-			_send_json(response)
-
-
-func _send_json(data: Dictionary) -> void:
-	var s := JSON.stringify(data)
-	client.put_data(s.to_utf8_buffer())
+			var arena_json_str: String = arena.sendArenaParams()
+			client.put_data(arena_json_str.to_utf8_buffer())

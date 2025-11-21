@@ -1,8 +1,8 @@
 extends Node2D
 
-@onready var tank := $AITank      # adjust path if your node is named differently
-@onready var goal := $Goal
-@onready var conn := $PythonConnector
+@onready var tank = $AITank      # adjust path if your node is named differently
+@onready var goal = $Goal
+@onready var conn = $PythonConnector
 
 var arena_w := 1.0
 var arena_h := 1.0
@@ -19,17 +19,24 @@ func _ready() -> void:
 	if conn == null:
 		push_error("TrainingArena: PythonConnector not found! Children: %s" % str(get_children()))
 
-func _physics_process(delta: float) -> void:
-	conn.poll()  # make sure we read any actions first
-
-	var state := {
-		"tank_x": tank.position.x / arena_w,
-		"tank_y": tank.position.y / arena_h,
-		"goal_x": goal.position.x / arena_w,
-		"goal_y": goal.position.y / arena_h
+func sendArenaParams() -> String:
+	 # Get positions (use global_position if these are Node2D)
+	var tank_pos = tank.global_position
+	var goal_pos = goal.global_position
+	var data := {
+		"arena": {
+			"width": arena_w,
+			"height": arena_h
+		},
+		"tank": {
+			"x": tank_pos.x,
+			"y": tank_pos.y
+		},
+		"goal": {
+			"x": goal_pos.x,
+			"y": goal_pos.y
+		}
 	}
-	conn.send_state(state)
 
-	var action: Vector2 = conn.pop_action_or_default(Vector2.ZERO)
-	print("Action from connector:", action)
-	tank.apply_ai_action(action, delta)
+	var json := JSON.stringify(data)
+	return json
