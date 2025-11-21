@@ -3,8 +3,8 @@ class_name AITank
 
 var speed = 200
 var angularSpeed = PI
-var turn_direction := 1.0
-var move_dir := 1.0
+var turn_direction := 0.0
+var move_dir := 0.0
 
 
 func _process(delta: float) -> void:
@@ -19,10 +19,14 @@ func setTurn(turn: float) -> void:
 	if turn > 0.0:
 		turn_direction = 1.0
 	elif turn < 0.0:
-		turn_direction = -0.5
+		turn_direction = -1.0	
+	elif turn == 0.0:
+		turn_direction = 0.0
 
 func setDirection(move: float):
 	if move > 0.0:
 		move_dir = 1.0
 	elif move < 0.0:
 		move_dir = -0.5 
+	elif move == 0.0:
+		move_dir = 0.0
