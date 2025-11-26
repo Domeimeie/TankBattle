@@ -6,7 +6,7 @@ import shutil
 # Folder that contains project.godot
 PROJECT_PATH = "/home/dominique/GodotProjects/TankBattle"  # <--- adjust if needed
 
-N_ENVS = 16
+N_ENVS = 20
 BASE_PORT = 5000
 
 # Try locating Godot executable

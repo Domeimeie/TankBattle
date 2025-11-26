@@ -12,7 +12,9 @@ var last_reward := 0.0
 var done := false
 
 var step_count := 0
-const MAX_STEPS := 300  # at 5 Hz that's ~60 seconds per episode
+const MAX_STEPS := 300  
+
+var goal_hit_this_step := false
 
 
 func _ready() -> void:
@@ -21,7 +23,8 @@ func _ready() -> void:
 	var r := get_viewport_rect().size
 	arena_w = max(r.x, 1.0)
 	arena_h = max(r.y, 1.0)
-
+	$Goal.goal_reached.connect(_on_goal_collision)
+	
 	if tank == null:
 		push_error("TrainingArena: AITank node not found! Children: %s" % str(get_children()))
 	if goal == null:
@@ -31,6 +34,10 @@ func _ready() -> void:
 
 	_reset_episode()
 
+
+func _on_goal_collision() -> void:
+	print("Arena received goal collision")
+	goal_hit_this_step = true
 
 func _reset_episode() -> void:
 	if tank == null or goal == null:
@@ -58,6 +65,7 @@ func _reset_episode() -> void:
 	last_reward = 0.0
 	done = false
 	step_count = 0
+	goal_hit_this_step = false
 
 	print("Episode reset, tank:", tank.global_position, "goal:", goal.global_position, "dist:", prev_dist)
 
@@ -83,13 +91,16 @@ func _update_reward_and_done() -> void:
 	#  - small time penalty every tick
 	var r = 0.1 * dist_change - 0.01
 
-	var goal_radius := 20.0
-
 	# Goal reached?
-	if dist_now < goal_radius:
-		r += 1.0
+	if goal_hit_this_step and not done:
+		r += 1.0  # completion bonus
 		done = true
-		print("Goal reached! dist_now =", dist_now)
+		#print("Goal reached via collision!")
+		
+	#var goal_radius := 20.0
+	#if dist_now < goal_radius:
+	#	r += 1.0
+	#	done = true
 
 	# Episode timeout
 	step_count += 1

@@ -5,6 +5,6 @@ func _ready():
 	connect("body_entered", Callable(self, "_on_body_entered"))
 
 func _on_body_entered(body):
-	if body is CharacterBody2D:
-		emit_signal("goal_reached", body)
+	if body.name == "AITank":
+		emit_signal("goal_reached")
 		print("Goal reached by:", body.name)
