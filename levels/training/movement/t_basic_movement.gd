@@ -7,94 +7,133 @@ extends Node2D
 var arena_w := 1.0
 var arena_h := 1.0
 
-# Training / reward system
-var start_tank_pos := Vector2.ZERO
-var start_goal_pos := Vector2.ZERO
-var last_distance := 0.0
+var prev_dist := 0.0
+var last_reward := 0.0
+var done := false
+
+var step_count := 0
+const MAX_STEPS := 300  # at 5 Hz that's ~60 seconds per episode
 
 
 func _ready() -> void:
+	randomize()
+
 	var r := get_viewport_rect().size
 	arena_w = max(r.x, 1.0)
 	arena_h = max(r.y, 1.0)
 
+	if tank == null:
+		push_error("TrainingArena: AITank node not found! Children: %s" % str(get_children()))
+	if goal == null:
+		push_error("TrainingArena: Goal node not found! Children: %s" % str(get_children()))
+	if conn == null:
+		push_error("TrainingArena: PythonConnector not found! Children: %s" % str(get_children()))
+
 	_reset_episode()
 
 
-func _process(delta: float) -> void:
-	_check_episode()
+func _reset_episode() -> void:
+	if tank == null or goal == null:
+		return
+
+	var margin := 50.0
+
+	# Randomize tank and goal positions inside the arena
+	var tank_pos := Vector2(
+		randf_range(margin, arena_w - margin),
+		randf_range(margin, arena_h - margin)
+	)
+	var goal_pos := Vector2(
+		randf_range(margin, arena_w - margin),
+		randf_range(margin, arena_h - margin)
+	)
+
+	tank.global_position = tank_pos
+	goal.global_position = goal_pos
+
+	# Randomize tank orientation
+	tank.rotation = randf_range(-PI, PI)
+
+	prev_dist = tank_pos.distance_to(goal_pos)
+	last_reward = 0.0
+	done = false
+	step_count = 0
+
+	print("Episode reset, tank:", tank.global_position, "goal:", goal.global_position, "dist:", prev_dist)
 
 
-func _check_episode():
-	var dist = tank.global_position.distance_to(goal.global_position)
+func _update_reward_and_done() -> void:
+	if tank == null or goal == null:
+		last_reward = 0.0
+		return
 
-	# Reward = improvement in distance
-	var reward = (last_distance - dist) / arena_w    # normalized reward
-	last_distance = dist
-
-	var done := false
-
-	# If tank reached goal
-	if dist < 20.0:
-		reward += 1.0         # big positive reward
-		done = true
-
-	# If tank leaves arena
-	if tank.global_position.x < 0 or tank.global_position.x > arena_w \
-	or tank.global_position.y < 0 or tank.global_position.y > arena_h:
-		reward -= 1.0
-		done = true
-
-	# Send to Python
-	conn.send_reward_and_done(reward, done)
-
-	# Reset if needed
+	# already finished this step -> no more reward
 	if done:
-		_reset_episode()
+		last_reward = 0.0
+		return
 
-
-func _reset_episode():
-	# Randomize start locations (this is very important for training)
-	start_tank_pos = Vector2(randf_range(100, arena_w-100), randf_range(100, arena_h-100))
-	start_goal_pos = Vector2(randf_range(100, arena_w-100), randf_range(100, arena_h-100))
-
-	tank.global_position = start_tank_pos
-	goal.global_position = start_goal_pos
-
-	last_distance = tank.global_position.distance_to(goal.global_position)
-	print("Episode reset, initial distance:", last_distance)
-
-
-func sendArenaParams() -> String:
 	var tank_pos = tank.global_position
 	var goal_pos = goal.global_position
 
+	var dist_now = tank_pos.distance_to(goal_pos)
+	var dist_change = prev_dist - dist_now
+
+	# Base reward:
+	#  + getting closer to goal
+	#  - small time penalty every tick
+	var r = 0.1 * dist_change - 0.01
+
+	var goal_radius := 20.0
+
+	# Goal reached?
+	if dist_now < goal_radius:
+		r += 1.0
+		done = true
+		print("Goal reached! dist_now =", dist_now)
+
+	# Episode timeout
+	step_count += 1
+	if step_count >= MAX_STEPS and not done:
+		r -= 0.5  # extra penalty for timing out
+		done = true
+		print("Episode timeout at step", step_count, "dist =", dist_now)
+
+	last_reward = r
+	prev_dist = dist_now
+
+
+func sendArenaParams() -> String:
+	# Update reward/done for this step
+	_update_reward_and_done()
+
+	var tank_pos = tank.global_position
+	var goal_pos = goal.global_position
+
+	var current_reward := last_reward
+	var current_done := done
+
 	var data := {
-		"arena": { 
-			"width": arena_w, 
-			"height": arena_h 
+		"arena": {
+			"width": arena_w,
+			"height": arena_h
 		},
-		"tank":  { 
-			"x": tank_pos.x, 
+		"tank": {
+			"x": tank_pos.x,
 			"y": tank_pos.y,
-			"rot": tank.rotation      # NEW: orientation in radians
+			"rot": tank.rotation   # orientation in radians
 		},
-		"goal":  { 
-			"x": goal_pos.x, 
-			"y": goal_pos.y 
-		}
+		"goal": {
+			"x": goal_pos.x,
+			"y": goal_pos.y
+		},
+		"reward": current_reward,
+		"done": current_done
 	}
 
-	return JSON.stringify(data)
+	var json := JSON.stringify(data)
 
+	# If this state ended the episode, immediately prepare the next one
+	if current_done:
+		_reset_episode()
 
-# =========================================
-# NEW: function PythonConnector will call
-# =========================================
-func send_reward_and_done(reward: float, done: bool):
-	if conn.client:
-		var msg := {
-			"reward": reward,
-			"done": done
-		}
-		conn.client.put_data(JSON.stringify(msg).to_utf8_buffer())
+	return json

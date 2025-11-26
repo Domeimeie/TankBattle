@@ -6,15 +6,11 @@ var client: StreamPeerTCP
 const DEFAULT_PORT := 5000
 var port: int = DEFAULT_PORT
 
-const SEND_INTERVAL := 0.2  # 5 times per second
+const SEND_INTERVAL := 0.05  # 20 times per second
 var send_timer := 0.0
 
 @onready var arena = get_parent()                     # TrainingArena
 @onready var tank = get_parent().get_node("AITank")   # AITank node
-
-# NEW: store latest reward/done passed from the arena
-var last_reward: float = 0.0
-var last_done: bool = false
 
 
 func _ready() -> void:
@@ -68,14 +64,6 @@ func _process(delta: float) -> void:
 			send_timer = 0.0
 
 			var arena_json_str: String = arena.sendArenaParams()
-
-			# NEW: inject latest reward/done from arena into the JSON
-			var parsed = JSON.parse_string(arena_json_str)
-			if typeof(parsed) == TYPE_DICTIONARY:
-				parsed["reward"] = last_reward
-				parsed["done"] = last_done
-				arena_json_str = JSON.stringify(parsed)
-
 			client.put_data(arena_json_str.to_utf8_buffer())
 		# --------------------------------------------------
 
@@ -103,9 +91,3 @@ func _handle_python_message(obj) -> void:
 
 	tank.setTurn(turn)
 	tank.setDirection(throttle)
-
-
-# NEW: this is what your arena calls from _check_episode()
-func send_reward_and_done(reward: float, done: bool) -> void:
-	last_reward = reward
-	last_done = done
