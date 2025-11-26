@@ -1,102 +1,100 @@
 extends Node2D
 
-@onready var tank = $AITank      # adjust path if your node is named differently
+@onready var tank = $AITank
 @onready var goal = $Goal
 @onready var conn = $PythonConnector
 
 var arena_w := 1.0
 var arena_h := 1.0
 
-var prev_dist := 0.0
-var last_reward := 0.0
-var done := false
+# Training / reward system
+var start_tank_pos := Vector2.ZERO
+var start_goal_pos := Vector2.ZERO
+var last_distance := 0.0
 
 
 func _ready() -> void:
-	var r = get_viewport_rect().size
+	var r := get_viewport_rect().size
 	arena_w = max(r.x, 1.0)
 	arena_h = max(r.y, 1.0)
-	print("Arena ready:", arena_w, arena_h)
-	if tank == null:
-		push_error("TrainingArena: AITank node not found! Children: %s" % str(get_children()))
-	if goal == null:
-		push_error("TrainingArena: Goal node not found! Children: %s" % str(get_children()))
-	if conn == null:
-		push_error("TrainingArena: PythonConnector not found! Children: %s" % str(get_children()))
 
-	_resetEpisode()
+	_reset_episode()
 
 
-func _resetEpisode() -> void:
-	if tank == null or goal == null:
-		return
-
-	var tank_pos = tank.global_position
-	var goal_pos = goal.global_position
-	prev_dist = tank_pos.distance_to(goal_pos)
-	last_reward = 0.0
-	done = false
-	print("Episode reset, initial distance:", prev_dist)
+func _process(delta: float) -> void:
+	_check_episode()
 
 
-func _updateReward() -> void:
-	if done:
-		# Episode already ended, no more reward this step
-		last_reward = 0.0
-		return
+func _check_episode():
+	var dist = tank.global_position.distance_to(goal.global_position)
 
-	if tank == null or goal == null:
-		last_reward = 0.0
-		return
+	# Reward = improvement in distance
+	var reward = (last_distance - dist) / arena_w    # normalized reward
+	last_distance = dist
 
-	var tank_pos = tank.global_position
-	var goal_pos = goal.global_position
+	var done := false
 
-	var dist_now = tank_pos.distance_to(goal_pos)
-	var dist_change = prev_dist - dist_now
-
-	# Base reward:
-	#  - positive if we move closer
-	#  - small negative each step to encourage faster solutions
-	var r = 0.1 * dist_change - 0.01
-
-	# Goal reached?
-	var goal_radius = 20.0  # tweak as needed
-	if dist_now < goal_radius:
-		r += 1.0
+	# If tank reached goal
+	if dist < 20.0:
+		reward += 1.0         # big positive reward
 		done = true
-		print("Goal reached!")
 
-	# TODO: add extra penalties for collisions / out of bounds if needed
+	# If tank leaves arena
+	if tank.global_position.x < 0 or tank.global_position.x > arena_w \
+	or tank.global_position.y < 0 or tank.global_position.y > arena_h:
+		reward -= 1.0
+		done = true
 
-	last_reward = r
-	prev_dist = dist_now
+	# Send to Python
+	conn.send_reward_and_done(reward, done)
+
+	# Reset if needed
+	if done:
+		_reset_episode()
+
+
+func _reset_episode():
+	# Randomize start locations (this is very important for training)
+	start_tank_pos = Vector2(randf_range(100, arena_w-100), randf_range(100, arena_h-100))
+	start_goal_pos = Vector2(randf_range(100, arena_w-100), randf_range(100, arena_h-100))
+
+	tank.global_position = start_tank_pos
+	goal.global_position = start_goal_pos
+
+	last_distance = tank.global_position.distance_to(goal.global_position)
+	print("Episode reset, initial distance:", last_distance)
 
 
 func sendArenaParams() -> String:
-	# Update reward before sending state
-	_updateReward()
-
-	# Get positions (use global_position since this is Node2D)
 	var tank_pos = tank.global_position
 	var goal_pos = goal.global_position
 
 	var data := {
-		"arena": {
-			"width": arena_w,
-			"height": arena_h
+		"arena": { 
+			"width": arena_w, 
+			"height": arena_h 
 		},
-		"tank": {
-			"x": tank_pos.x,
-			"y": tank_pos.y
+		"tank":  { 
+			"x": tank_pos.x, 
+			"y": tank_pos.y,
+			"rot": tank.rotation      # NEW: orientation in radians
 		},
-		"goal": {
-			"x": goal_pos.x,
-			"y": goal_pos.y
-		},
-		"reward": last_reward,
-		"done": done
+		"goal":  { 
+			"x": goal_pos.x, 
+			"y": goal_pos.y 
+		}
 	}
 
-	var json = JSON.stringify(data)
-	return json
+	return JSON.stringify(data)
+
+
+# =========================================
+# NEW: function PythonConnector will call
+# =========================================
+func send_reward_and_done(reward: float, done: bool):
+	if conn.client:
+		var msg := {
+			"reward": reward,
+			"done": done
+		}
+		conn.client.put_data(JSON.stringify(msg).to_utf8_buffer())
